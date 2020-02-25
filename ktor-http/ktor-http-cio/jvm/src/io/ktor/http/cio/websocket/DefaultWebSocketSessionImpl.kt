@@ -131,6 +131,9 @@ class DefaultWebSocketSessionImpl(
             ponger.close()
             last?.release()
             filtered.close()
+
+            // Job will be cancelled if it's not completed yet.
+            closeReasonRef.cancel()
         }
     }
 
