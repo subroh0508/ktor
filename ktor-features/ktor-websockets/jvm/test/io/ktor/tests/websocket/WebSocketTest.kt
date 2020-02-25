@@ -294,12 +294,15 @@ class WebSocketTest {
             }
 
             var exception: Throwable? = null
+            val executed = Job()
             application.routing {
                 webSocket("/") {
                     try {
                         incoming.receive()
                     } catch (cause: Throwable) {
                         exception = cause
+                    } finally {
+                        executed.complete()
                     }
                 }
             }
@@ -308,7 +311,13 @@ class WebSocketTest {
                 setBody(sendBuffer.array())
             }.let { call ->
                 validateCloseWithBigFrame(call)
-                assertTrue { exception is WebSocketReader.FrameTooBigException }
+                runBlocking {
+                    executed.join()
+                }
+
+                assertTrue("Expected FrameTooBigException, but found $exception") {
+                    exception is WebSocketReader.FrameTooBigException
+                }
             }
         }
     }
@@ -370,12 +379,15 @@ class WebSocketTest {
             }
 
             var exception: Throwable? = null
+            val executed = Job()
             application.routing {
                 webSocket("/") {
                     try {
                         incoming.receive()
                     } catch (cause: Throwable) {
                         exception = cause
+                    } finally {
+                        executed.complete()
                     }
                 }
             }
@@ -384,6 +396,9 @@ class WebSocketTest {
                 setBody(sendBuffer.array())
             }.let { call ->
                 validateCloseWithBigFrame(call)
+                runBlocking {
+                    executed.join()
+                }
                 assertTrue { exception is WebSocketReader.FrameTooBigException }
             }
         }
@@ -478,7 +493,7 @@ class WebSocketTest {
             val frame = reader.incoming.receive()
             call.response.awaitWebSocket(Duration.ofSeconds(10))
 
-            assertTrue { frame is Frame.Close }
+            assertTrue("Expected Frame.Close, but found $frame") { frame is Frame.Close }
             val reason = (frame as Frame.Close).readReason()
             assertEquals(CloseReason.Codes.TOO_BIG.code, reason?.code)
         }
